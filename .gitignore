@@ -26,6 +26,7 @@
 /docs/superpowers/plans/*
 !/docs/superpowers/plans/2026-10-09-grove-suite.md
 !/docs/superpowers/plans/sdk-notes.md
+!/docs/superpowers/progress-2026-10-09.md
 
 # Generated package artifacts and isolated worktrees are local-only.
 /.worktrees/
