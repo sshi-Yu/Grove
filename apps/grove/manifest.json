@@ -20,5 +20,6 @@
       }
     ]
   },
-  "icon": "assets/icon.svg"
+  "icon": "assets/icon.svg",
+  "minAppVersion": "0.928.0"
 }

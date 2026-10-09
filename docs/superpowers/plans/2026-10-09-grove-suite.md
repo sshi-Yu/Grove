@@ -17,6 +17,7 @@
 - 工具名须匹配 `^[a-z][a-z0-9_-]*$`；Hana 不给工具名加前缀，重名会使整个 App `failed`。
 - 模块 ID 稳定、唯一，匹配 `^[a-z][a-z0-9-]*$`；工具名 `grove_<模块ID>_<本地名>`，命令名 `grove-<模块ID>-<本地名>`。
 - 初次安装与更新新增的模块一律**默认关闭**；启停按套件**全局**生效，不按 Agent。
+- 整页 App 页面使用相对静态资源路径时 manifest 至少声明 `minAppVersion: "0.928.0"`。Creator 脚手架基于随包 SDK 的实际兼容版本自动写入最低版本；不要为了视觉能力随意降低它。
 - 运行状态集合：`planned`、`off`、`starting`、`on`、`blocked`（权限不足）、`failed`、`stopping`。
 - 停用、重载、更新都不删除模块设置与数据；数据格式变化走模块迁移，迁移失败保留旧数据并显示错误。
 - `storage` 单作用域 16 MiB 硬上限，首版只存选择、语言与模块数据，不存大对象。
@@ -55,11 +56,11 @@
 
 - [ ] **Step 3: 写失败测试 `tests/manifest.test.js`。** 用 `node:test` 读取 `manifest.json`，断言：`manifestVersion === 2`、`id === "grove"`、`name === "Grove"`、`capabilities` 深等于 `[]`、`contributes.cards` 恰一张且 `id === "panel"`、`route === "/panel.html"`、`realization === "page"`、`siteNavEntry === true`、`face.image` 是以 `assets/` 开头的字符串、`contributes.ui` 不存在（无消息按钮）。为了验证 RED，临时仅将清单的 capability 改回脚手架默认值并运行 `node --test --test-isolation=none tests/manifest.test.js`，应只因 `capabilities` 断言失败；恢复后跑绿。默认隔离在本 sandbox 会 spawn 子进程并报 `EPERM`，不得把该环境失败算作测试 RED。
 
-- [ ] **Step 4: 修改 `manifest.json` 使测试通过。** 设 `description` 为“Fern 的 HanaAgent 扩展套件：统一管理面板与可逐项启用的小功能模块。”；`capabilities` 置 `[]`；卡片 `panel` 加 `realization: "page"`、`siteNavEntry: true`、`title: "Grove"`；删除任何 `contributes.ui`。再把脚手架里的 `index.js` 示例工具整段删除，只留 `defineApp(async (sdk) => {})` 空体。
+- [ ] **Step 4: 修改清单并清理 starter demo。** 设 `description` 为“Fern 的 HanaAgent 扩展套件：统一管理面板与可逐项启用的小功能模块。”；`capabilities` 置 `[]`；卡片 `panel` 加 `realization: "page"`、`siteNavEntry: true`、`title: "Grove"`；删除任何 `contributes.ui`。保留脚手架依随包 SDK 写入的 `minAppVersion`（当前基线 `1.0.6-beta`），因为 Hana 文档要求使用相对静态资源的 App 至少 `0.928.0`，不能把 SDK 版本当成可任意删除的多余字段。`index.js` 移除脚手架 hello 工具，只保留合法空 `defineApp`。`ui/panel.html`/`panel.js` 也清理 greeting、输入框与 starter 状态文字，保持面板占位但不假装已有功能。README 删除“starter tool requires `app/tools.expose-to-model`”章节，避免与 manifest 能力清单矛盾。
 
 - [ ] **Step 5: 核对 SDK 签名。** 把 `hana-app-creator/assets/sdk/hana-app-sdk.tgz` 解到临时目录，读 `package/dist` 里的类型声明，确认并记在 `docs/superpowers/plans/sdk-notes.md`：`sdk.tools.register`、`sdk.commands.register`、`sdk.bus.subscribe`、`sdk.routes.register`、`sdk.storage.global.get/set/delete` 各自的参数与返回值（回执是 `{ ready, disposeAsync }` 还是函数）。后续 Task 3/8 以这份记录为准。
 
-- [ ] **Step 6: 添加 `package.json`**（`{"type":"module","private":true,"scripts":{"test":"node --test --test-isolation=none tests/*.test.js"}}`）。本 sandbox 的 Node 测试 runner 默认 isolation 需要 spawn，实测失败码 `EPERM`；显式测试文件 glob + isolation none 可运行，已复测 `npm test` 为 PASS。随后运行 `node hana-app-creator/scripts/validate_app.mjs --dir apps/grove --json`：预期无 error。
+- [ ] **Step 6: 添加 `package.json`**（`{"type":"module","private":true,"scripts":{"test":"node --test --test-isolation=none tests/*.test.js"}}`）。默认隔离的 node:test 会 spawn worker 而在此 Windows sandbox 报 `spawn EPERM`；单进程隔离 + 显式 `*.test.js` glob 可运行，`npm test` 已验证 PASS。官方静态校验从 worktree 根目录运行：`node hana-app-creator/scripts/validate_app.mjs --dir apps/grove --json`（不要在 `apps/grove` 子目录用同一相对路径），预期无 error。
 
 - [ ] **Step 7: Commit** — `git add brand apps docs/superpowers/plans && git commit -m "feat: scaffold grove host app"`
 
