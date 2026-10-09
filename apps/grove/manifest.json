@@ -1,0 +1,25 @@
+{
+  "manifestVersion": 2,
+  "id": "grove",
+  "name": "Grove",
+  "version": "0.1.0",
+  "entry": "index.js",
+  "description": "Fern 的 HanaAgent 扩展套件：统一管理面板与可逐项启用的小功能模块。",
+  "capabilities": [],
+  "contributes": {
+    "cards": [
+      {
+        "id": "panel",
+        "title": "Grove",
+        "route": "/panel.html",
+        "realization": "page",
+        "siteNavEntry": true,
+        "face": {
+          "image": "assets/cover.svg"
+        }
+      }
+    ]
+  },
+  "icon": "assets/icon.svg",
+  "minAppVersion": "1.0.6-beta"
+}
