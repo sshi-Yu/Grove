@@ -6,7 +6,7 @@
 
 **Architecture:** 一个 Hana v2 宿主 App（目录与 id 均为 `grove`）。业务无关的核心（契约、注册表、`ModuleApi`、存储、生命周期、i18n）写成不依赖 Hana SDK 的纯 ESM，用 `node:test` 测试；`host/` 里的薄适配层把 `defineApp` 的 `sdk` 接成核心要求的 `HostPort`，并挂 Hono 路由；`ui/` 的整页卡通过 `hana.api.fetch` 读写这些路由。首版没有真实模块，启停与故障流程用只存在于测试中的假模块验证。
 
-**Tech Stack:** Node ESM（无构建、无 npm 依赖）、`node:test`、Hana v2 App SDK（随脚手架复制到 `apps/grove/sdk/`，勿手改）、Hono（由宿主提供的路由对象）、原生 HTML/CSS/JS。
+**Tech Stack:** Node ESM（无构建、无 npm 依赖）、`node:test`（本 Windows sandbox 的验证命令用 `--test-isolation=none`，规避 Node 子进程 `spawn EPERM`）、Hana v2 App SDK（随脚手架复制到 `apps/grove/sdk/`，勿手改）、Hono（由宿主提供的路由对象）、原生 HTML/CSS/JS。
 
 **Spec:** `docs/superpowers/specs/2026-10-09-grove-suite-design.md`（执行者须同时阅读规格与 `docs/APPS.md`）
 
@@ -25,7 +25,7 @@
 - 样式用 `hana.theme` 宿主签发的 `cssUrl` 与宿主 CSS 变量起步，明暗随宿主；图标用线性图形，不用 Emoji。
 - 语言：`zh`、`zh-TW`、`en`、`ja`、`ko`；Hana v2 无公开宿主语言接口，按浏览器语言选择并允许手动覆盖，回退 `zh`；品牌名 `Grove`，中文名「林间」。
 - 首批示例对应：`session-stats`＝向日葵（会话统计）、`token-stats`＝小苔藓（Token 统计）、`task-manager`＝松鼠（事务管理）。
-- 仓库已初始化，`origin` 指向 `https://github.com/sshi-Yu/Grove.git`；所有功能实现都在 linked worktree 与 feature branch 中进行，按任务提交；未经 Fern 明确要求不 push。当前主工作区中用于初始化的基线仅包含 `.gitignore` 与确认过的规格/计划文档，不纳入其他工作区项目。
+- 仓库已初始化，`origin` 指向 `https://github.com/sshi-Yu/Grove.git`；所有功能实现都在 linked worktree 与 feature branch 中进行，按任务提交；用户已要求交付后 push feature branch。当前主工作区中用于初始化的基线仅包含 `.gitignore` 与确认过的规格/计划文档，不纳入其他工作区项目。
 
 ## Review Focus
 
@@ -44,7 +44,7 @@
 - Create: `brand/grove-icon.svg`, `brand/grove-cover.svg`
 - Create (scaffold): `apps/grove/**`（`manifest.json`、`index.js`、`sdk/`、`ui/`）
 - Create: `apps/grove/package.json`, `apps/grove/tests/manifest.test.js`
-- Modify: `apps/grove/manifest.json`
+- Modify: `apps/grove/manifest.json`, `apps/grove/README.md`（移除脚手架不再对应的 starter-tool 指引）
 
 **Interfaces:**
 - Produces: `apps/grove/` 目录及可运行的 `npm test`（即 `node --test tests/`，在 `apps/grove` 下执行）；已核对的 SDK 签名记录（见 Step 4）。
@@ -53,13 +53,13 @@
 
 - [ ] **Step 2: 运行官方脚手架。** 命令：`py -3 hana-app-creator/scripts/create_hana_app.py "Grove" --app-id grove --path apps --icon brand/grove-icon.svg --cover brand/grove-cover.svg --kind ui`。预期：生成 `apps/grove/manifest.json`，脚手架末尾的内置校验通过。若 `check_env.mjs` 因沙箱报 `python_not_found`，直接用上面的命令即可（Python 3.9+ 已可用）。
 
-- [ ] **Step 3: 写失败测试 `tests/manifest.test.js`。** 用 `node:test` 读取 `manifest.json`，断言：`manifestVersion === 2`、`id === "grove"`、`name === "Grove"`、`capabilities` 深等于 `[]`、`contributes.cards` 恰一张且 `id === "panel"`、`route === "/panel.html"`、`realization === "page"`、`siteNavEntry === true`、`face.image` 是以 `assets/` 开头的字符串、`contributes.ui` 不存在（无消息按钮）。运行 `node --test tests/`（在 `apps/grove`）：预期 FAIL（脚手架默认带 `app/tools.expose-to-model`）。
+- [ ] **Step 3: 写失败测试 `tests/manifest.test.js`。** 用 `node:test` 读取 `manifest.json`，断言：`manifestVersion === 2`、`id === "grove"`、`name === "Grove"`、`capabilities` 深等于 `[]`、`contributes.cards` 恰一张且 `id === "panel"`、`route === "/panel.html"`、`realization === "page"`、`siteNavEntry === true`、`face.image` 是以 `assets/` 开头的字符串、`contributes.ui` 不存在（无消息按钮）。为了验证 RED，临时仅将清单的 capability 改回脚手架默认值并运行 `node --test --test-isolation=none tests/manifest.test.js`，应只因 `capabilities` 断言失败；恢复后跑绿。默认隔离在本 sandbox 会 spawn 子进程并报 `EPERM`，不得把该环境失败算作测试 RED。
 
 - [ ] **Step 4: 修改 `manifest.json` 使测试通过。** 设 `description` 为“Fern 的 HanaAgent 扩展套件：统一管理面板与可逐项启用的小功能模块。”；`capabilities` 置 `[]`；卡片 `panel` 加 `realization: "page"`、`siteNavEntry: true`、`title: "Grove"`；删除任何 `contributes.ui`。再把脚手架里的 `index.js` 示例工具整段删除，只留 `defineApp(async (sdk) => {})` 空体。
 
 - [ ] **Step 5: 核对 SDK 签名。** 把 `hana-app-creator/assets/sdk/hana-app-sdk.tgz` 解到临时目录，读 `package/dist` 里的类型声明，确认并记在 `docs/superpowers/plans/sdk-notes.md`：`sdk.tools.register`、`sdk.commands.register`、`sdk.bus.subscribe`、`sdk.routes.register`、`sdk.storage.global.get/set/delete` 各自的参数与返回值（回执是 `{ ready, disposeAsync }` 还是函数）。后续 Task 3/8 以这份记录为准。
 
-- [ ] **Step 6: 添加 `package.json`**（`{"type":"module","private":true,"scripts":{"test":"node --test tests/"}}`），运行 `npm test`：预期 PASS；运行 `node hana-app-creator/scripts/validate_app.mjs --dir apps/grove --json`：预期无 error。
+- [ ] **Step 6: 添加 `package.json`**（`{"type":"module","private":true,"scripts":{"test":"node --test --test-isolation=none tests/*.test.js"}}`）。本 sandbox 的 Node 测试 runner 默认 isolation 需要 spawn，实测失败码 `EPERM`；显式测试文件 glob + isolation none 可运行，已复测 `npm test` 为 PASS。随后运行 `node hana-app-creator/scripts/validate_app.mjs --dir apps/grove --json`：预期无 error。
 
 - [ ] **Step 7: Commit** — `git add brand apps docs/superpowers/plans && git commit -m "feat: scaffold grove host app"`
 

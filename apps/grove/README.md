@@ -35,8 +35,5 @@ This App declares no startup arguments. Add static `contributes.cliFlags` entrie
 
 Build changed sources, then explicitly reload through Builder or App Manager. Local-directory installs retain their source for reload. New permission requests require review; read the resulting state before continuing. Keep the source project separate from the disposable development environment.
 
-## How the starter tool runs
-
-The starter tool uses the declared name, without an automatic host prefix. The manifest requests `app/tools.expose-to-model`; after approval, enable the App for the intended Agent. Discover the current tool schema before calling it. The Agent's tool discovery mode determines whether the tool is listed directly or found through deferred discovery.
 
 The full contract is in `APPS.md` / `APPS_EN.md`.
