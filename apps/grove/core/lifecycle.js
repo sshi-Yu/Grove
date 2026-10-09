@@ -1,4 +1,5 @@
 import { createModuleApi } from './module-api.js';
+import { runSchemaGate } from './schema-gate.js';
 
 // Lifecycle engine: owns each module's run status and serializes all
 // operations on a module through a per-module promise chain. Enable runs the
@@ -77,40 +78,6 @@ export function createLifecycle({ registry, store, port, logger }) {
     return def;
   }
 
-  async function runSchemaGate(def, api) {
-    const stored = await store.getModuleSchema(def.id);
-    if (stored === null) {
-      await store.setModuleSchema(def.id, def.schemaVersion);
-      return;
-    }
-    if (stored === def.schemaVersion) {
-      return;
-    }
-    if (stored > def.schemaVersion) {
-      const error = new Error(
-        `stored schema ${stored} is newer than module schema ${def.schemaVersion}`,
-      );
-      error.code = 'SCHEMA_NEWER';
-      throw error;
-    }
-    if (typeof def.migrate !== 'function') {
-      const error = new Error(
-        `module ${def.id} has no migrate but stored schema is ${stored} < ${def.schemaVersion}`,
-      );
-      error.code = 'MIGRATION_FAILED';
-      throw error;
-    }
-    try {
-      await def.migrate(stored, api);
-    } catch (cause) {
-      const error = new Error(`migrate failed for ${def.id}: ${cause.message}`);
-      error.code = 'MIGRATION_FAILED';
-      error.cause = cause;
-      throw error;
-    }
-    await store.setModuleSchema(def.id, def.schemaVersion);
-  }
-
   function toView([id, { status, error }]) {
     const view = { id, status };
     if (error !== undefined) {
@@ -141,7 +108,7 @@ export function createLifecycle({ registry, store, port, logger }) {
     setStatus(id, 'starting');
     const { api, disposeAll } = createModuleApiFor(def);
     try {
-      await runSchemaGate(def, api);
+      await runSchemaGate(def, store, api);
       const cleanup = await def.activate(api);
       cleanups.set(id, typeof cleanup === 'function' ? cleanup : undefined);
       disposals.set(id, disposeAll);
@@ -194,7 +161,12 @@ export function createLifecycle({ registry, store, port, logger }) {
       if (disposeAll !== undefined) {
         await disposeAndLog(id, disposeAll);
       }
-      await store.setEnabled(id, false);
+      await store.setEnabled(id, false).catch((error) => {
+        // The module is already fully torn down; leaving it stuck in
+        // `stopping` would strand the toggle until the next host restart.
+        // Surface the failure, then converge the view to `off`.
+        log.error(`[grove:${id}] failed to persist disable: ${error.message}`);
+      });
       setStatus(id, 'off');
       return toView([id, statuses.get(id)]);
     });

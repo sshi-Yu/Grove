@@ -26,7 +26,7 @@ apps/grove/
 ├── modules/index.js       # 模块登记处（首版为空数组 + 三个规划条目）
 ├── ui/                    # 面板页面（panel.html + shell.js 主题接入 + view-model.js 分组）
 ├── scripts/check-modules.mjs  # 构建检查：命名冲突与能力覆盖
-└── tests/                 # node:test 套件（87 项）
+└── tests/                 # node:test 套件（88 项）
 ```
 
 ## 常用命令

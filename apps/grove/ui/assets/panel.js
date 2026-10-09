@@ -230,21 +230,34 @@ function toggleButton(view) {
     button.disabled = true;
   }
   button.addEventListener('click', () => {
-    void fetchToggle(view.id, action).then(renderCurrentView);
+    // Lock the control until the round trip settles so rapid clicks cannot
+    // enqueue the opposite action against a stale view.
+    if (button.disabled) return;
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    void fetchToggle(view.id, action).finally(renderCurrentView);
   });
   return button;
 }
 
 function buildErrorNote(view) {
   const note = el('div', 'card-error');
-  note.appendChild(el('p', 'card-error-message', t('error.generic')));
+  // Error codes come from our own lifecycle, but the UI only maps the codes
+  // that have a distinct user action; anything else stays generic.
+  const code = view.error && view.error.code;
+  const messageKey = code === 'MIGRATION_FAILED' || code === 'SCHEMA_NEWER'
+    ? `error.${code}`
+    : 'error.generic';
+  note.appendChild(el('p', 'card-error-message', t(messageKey)));
   if (view.status === 'blocked') {
     note.appendChild(el('p', 'card-error-hint', t('hint.blocked')));
   }
   const retry = el('button', 'card-retry', t('action.retry'));
   retry.type = 'button';
   retry.addEventListener('click', () => {
-    void fetchToggle(view.id, 'enable').then(renderCurrentView);
+    if (retry.disabled) return;
+    retry.disabled = true;
+    void fetchToggle(view.id, 'enable').finally(renderCurrentView);
   });
   note.appendChild(retry);
   return note;

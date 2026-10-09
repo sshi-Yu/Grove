@@ -294,3 +294,32 @@ test('first run records current schema', async () => {
   assert.equal(view.status, 'on');
   assert.equal(await port.storage.get('grove:schema:migrating-module'), 2);
 });
+
+test('disable still ends off when persisting the selection fails', async () => {
+  const { port, lifecycle } = setup({
+    modules: [
+      successModule('session-stats', {
+        activate: async (api) => {
+          await api.registerTool({ name: 'summary' });
+        },
+      }),
+    ],
+  });
+
+  await lifecycle.enable('session-stats');
+
+  const originalSet = port.storage.set.bind(port.storage);
+  port.storage.set = (key, value) => {
+    if (key === 'grove:selection') {
+      return Promise.reject(new Error('storage blew up'));
+    }
+    return originalSet(key, value);
+  };
+
+  const view = await lifecycle.disable('session-stats');
+
+  // The module is fully torn down; the view must converge to `off` instead of
+  // stranding in `stopping`, and registrations must be reverted.
+  assert.equal(view.status, 'off');
+  assert.equal(registrationsFor(port, 'session-stats').every(({ isDisposed }) => isDisposed()), true);
+});

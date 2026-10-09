@@ -33,6 +33,8 @@ const ALL_KEYS = [
   'hint.blocked',
   'empty.catalog',
   'error.generic',
+  'error.MIGRATION_FAILED',
+  'error.SCHEMA_NEWER',
   'module.session-stats.name',
   'module.session-stats.desc',
   'module.token-stats.name',
