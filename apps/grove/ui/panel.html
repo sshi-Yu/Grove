@@ -5,11 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Grove</title>
   <link rel="stylesheet" href="./assets/panel.css">
-  <link rel="stylesheet" href="./assets/app-ui.css">
 </head>
 <body>
-  <main id="app" data-hana-app-ui>
-    <h1>Grove</h1>
+  <main id="app" class="panel">
+    <header class="topbar">
+      <div class="brand">
+        <h1 class="brand-name" id="brand-name">Grove</h1>
+        <span class="brand-publisher" id="brand-publisher">Fern</span>
+      </div>
+      <div class="menu-anchor">
+        <button type="button" id="menu-button" class="menu-button" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-list">&#8943;</button>
+        <div id="menu-list" class="menu" role="menu" aria-label="Grove" hidden></div>
+      </div>
+    </header>
+
+    <section id="view-catalog" class="view"></section>
+    <section id="view-detail" class="view" hidden></section>
+    <section id="view-about" class="view" hidden></section>
   </main>
   <script type="module" src="./assets/panel.js"></script>
 </body>
