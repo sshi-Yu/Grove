@@ -2,6 +2,7 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "check:modules": "node scripts/check-modules.mjs",
     "test": "node --test --test-isolation=none tests/*.test.js"
   }
 }
