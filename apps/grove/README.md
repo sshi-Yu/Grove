@@ -35,5 +35,4 @@ This App declares no startup arguments. Add static `contributes.cliFlags` entrie
 
 Build changed sources, then explicitly reload through Builder or App Manager. Local-directory installs retain their source for reload. New permission requests require review; read the resulting state before continuing. Keep the source project separate from the disposable development environment.
 
-
 The full contract is in `APPS.md` / `APPS_EN.md`.
