@@ -1,38 +1,67 @@
-# Grove
+# Grove（林间）
 
-A Hana v2 app (`manifestVersion: 2`). Kind: `ui`.
+Fern 的 HanaAgent 扩展套件：一个面板宿主 App，统一管理可逐项启用的小功能模块。
 
-The identity icon is declared by `icon` in the manifest and shipped in `assets/`. Keep the source image; Hana creates a display copy during installation. Large images are resized automatically, and small images only receive a clarity recommendation.
+- 品牌：Grove / 林间（zh-TW・ja・ko 沿用「林间」原形，品牌名不做汉字本地化）
+- 形态：Hana v2 App（`manifestVersion: 2`），单张整页导航卡，无受保护能力
+- 语言：zh / zh-TW / en / ja / ko，按浏览器语言选择，可在面板「⋯」菜单手动覆盖，回退 zh
 
-## SDK and validate
+## 目录结构
 
-`index.js` imports the bundled local App SDK and uses `defineApp(async sdk => ...)`. Registration calls wait for the host acknowledgement; retain the returned receipt when later code must dispose a registration explicitly. The scaffold does not install packages or resolve imports from Hana's own `node_modules`.
-
-Every declared card must have `face.image` pointing to a bundled, nonempty PNG/WebP/SVG under `ui/`. For `ui` and `full`, the scaffold copies the explicit `--cover` source into `ui/assets/`. Keep the declaration and file together when editing or packaging; a missing or invalid cover rejects the App. Tool-only Apps do not need a card cover.
-
-## Validate
-
-The scaffold has run static package validation. After editing, build if required, then run these commands from a Hana checkout:
-
-```sh
-node scripts/validate-app.mjs --dir /path/to/grove --json
-node scripts/validate-app.mjs --dir /path/to/grove --smoke --json
+```
+apps/grove/
+├── manifest.json          # v2 清单：id grove、capabilities []、panel 页面卡
+├── index.js               # defineApp 入口：端口→存储→注册表→生命周期→路由→restore
+├── core/                  # 业务无关核心（纯 ESM，不依赖 Hana SDK，node:test 覆盖）
+│   ├── module-contract.js # ModuleDef 校验（validateModuleDef）
+│   ├── registry.js        # 注册表：查重、planned 条目、能力并集
+│   ├── module-api.js      # ModuleApi：注册跟踪与逆序回滚（disposeAll）
+│   ├── state-store.js     # 状态存储：启停选择、locale 覆盖、模块 schema 与数据
+│   ├── lifecycle.js       # 生命周期引擎：串行化、迁移门、失败回滚、错误隔离
+│   └── i18n.js            # 五语言词典、resolveLocale、createTranslator
+├── host/                  # 薄适配层：把 SDK 接成核心要求的 HostPort
+│   ├── ports.js           # createHostPort：SDK 回执归一成 Disposable
+│   ├── routes.js          # 面板 HTTP 路由（/state、enable、disable、/locale）
+│   └── standalone.js      # createStandaloneApp：单模块独立 App 入口
+├── modules/index.js       # 模块登记处（首版为空数组 + 三个规划条目）
+├── ui/                    # 面板页面（panel.html + shell.js 主题接入 + view-model.js 分组）
+├── scripts/check-modules.mjs  # 构建检查：命名冲突与能力覆盖
+└── tests/                 # node:test 套件（87 项）
 ```
 
-Use `--archive /path/to/install.zip --json` to validate the final installation archive. Add `--smoke` when startup execution is part of the task: it starts a backend process and, for declared UI pages, an Electron runner. Static validation alone does not prove runtime behavior. UI packages use path-scoped relative assets and the App UI SDK.
+## 常用命令
 
-## Startup arguments
+在 `apps/grove` 下执行：
 
-This App declares no startup arguments. Add static `contributes.cliFlags` entries only when startup-time configuration is necessary; then start Hana with `hana serve -- --app.<id>.<flag>=<value>`.
+```sh
+npm test               # 全部测试（单进程隔离，规避 Windows sandbox 的 spawn EPERM）
+npm run check:modules  # 构建检查：工具/命令名冲突、manifest 能力覆盖
+```
 
-## Install
+官方静态校验（任意目录，`--dir` 指向本目录或解包后的 App 目录）：
 
-1. Use Hana Builder to import this local directory into an isolated development project.
-2. Complete App Manager's review and read the actual installation result.
-3. For production installation, give the validated package or local directory to App Manager. The manifest id is `grove`.
+```sh
+node <hana-app-creator>/scripts/validate_app.mjs --dir apps/grove --json
+node <hana-app-creator>/scripts/validate_app.mjs --dir apps/grove --smoke --json  # 需 Node 26+ 运行时
+```
 
-## After you edit
+## 如何新增一个模块
 
-Build changed sources, then explicitly reload through Builder or App Manager. Local-directory installs retain their source for reload. New permission requests require review; read the resulting state before continuing. Keep the source project separate from the disposable development environment.
+1. 在 `modules/<id>/` 写模块：导出符合 `ModuleDef` 的对象（id 匹配 `^[a-z][a-z0-9-]*$`，工具名匹配 `^[a-z][a-z0-9_-]*$`），在 `activate(api)` 里通过 `api.registerTool` / `api.registerCommand` / `api.subscribe` 注册，返回清理函数（可选）。
+2. 在 `modules/index.js` 登记该模块。
+3. 若模块需要受保护能力，在 `manifest.json` 的 `capabilities` 补上（套件声明全部模块能力的并集）。
+4. 在 `core/i18n.js` 补五种语言的 `module.<id>.name` 与 `module.<id>.desc` 词条。
+5. 跑 `npm run check:modules` 与 `npm test`，全绿后提交。
 
-The full contract is in `APPS.md` / `APPS_EN.md`.
+新加入的模块默认关闭；已保存的启停选择不受模块更新影响。
+
+## 权限清单
+
+首版宿主自身不使用任何受保护能力，`manifest.json` 的 `capabilities` 为 `[]`。面板版将来会声明所含全部模块所需能力的并集；模块开关不授予也不撤销权限。
+
+## 已知限制
+
+- Hana v2 无公开宿主语言接口，语言按浏览器语言选择（`navigator.languages`），无法跟随宿主设置；可手动覆盖。
+- 独立模块包（每个模块打成单独 App）的 manifest 与打包流程尚未交付；`host/standalone.js` 已提供入口函数并用测试模块验证。
+- 模块数据的显式导出/导入迁移属于未来拆分，首版未含。
+- 隔离启动检查（`--smoke`）需要平台缓存的 Node 26+ AppHost 运行时，缺运行时的环境会报 `SMOKE_NODE_RUNTIME_UNAVAILABLE`。
