@@ -20,6 +20,5 @@
       }
     ]
   },
-  "icon": "assets/icon.svg",
-  "minAppVersion": "1.0.6-beta"
+  "icon": "assets/icon.svg"
 }
